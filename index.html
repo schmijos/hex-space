@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>title</title>
+    <link rel="stylesheet" href="css/main.css">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.5.1/pixi.min.js"></script>
+    <script src="js/board.js"></script>
+    <script src="js/turn_state.js"></script>
+
+    <script>
+      function createHexagon(x, y, color) {
+        let field = new PIXI.Graphics();
+        drawHexagonPath(field, color);
+
+        field.x = x;
+        field.y = y;
+        field.interactive = true;
+        field.buttonMode = true;
+
+        return field;
+      }
+
+      function drawHexagonPath(graphic, color) {
+        let hexagonRadius = 50;
+        let hexagonHeight = hexagonRadius * Math.sqrt(3);
+
+        graphic.beginFill(color);
+
+        graphic.drawPolygon([
+          -hexagonRadius, 0,
+          -hexagonRadius / 2, hexagonHeight / 2,
+          hexagonRadius / 2, hexagonHeight / 2,
+          hexagonRadius, 0,
+          hexagonRadius / 2, -hexagonHeight / 2,
+          -hexagonRadius / 2, -hexagonHeight / 2
+        ]);
+
+        graphic.endFill();
+      }
+    </script>
+</head>
+<body>
+</body>
+
+<script>
+  let players = ['Renuo Blue', 'Megabyte Mint'];
+  let playerColors = [0xFF0000, 0x00FF00];
+  let board = new Board(3, 3, players);
+  let turnState = new TurnState(players);
+  let fromHexagon = null;
+
+  let app = new PIXI.Application(800, 600, {backgroundColor: 0x1099bb});
+  document.body.appendChild(app.view);
+
+
+  board.grid.forEach(function(column, x) {
+    column.forEach(function(field, y) {
+      let center = {x: x*78+60, y: (y*88+100) - (44 * (x % 2))};
+      let caption = new PIXI.Text(`${field.strength}`);
+      caption.x = center.x;
+      caption.y = center.y;
+
+      let playerColor = playerColors[players.indexOf(field.flag)];
+      let hexagon = createHexagon(center.x, center.y, playerColor);
+
+      hexagon.on('mouseover', function (e) {
+        hexagon.alpha = 0.8;
+      });
+
+      hexagon.on('mouseout', function (e) {
+        hexagon.alpha = 1;
+      });
+
+      hexagon.on('pointerdown', function (e) {
+        if(turnState.from === null) {
+          turnState.from = [x, y];
+
+          fromHexagon = hexagon;
+          fromCaption = caption;
+
+          if(board.field(turnState.from).flag === turnState.player ) {
+            fromHexagon.clear();
+            drawHexagonPath(fromHexagon, 0x0000FF);
+          } else {
+            turnState.from = null;
+          }
+
+          return;
+        }
+
+        turnState.to = [x, y];
+
+        if(!board.play(turnState.player, turnState.from, turnState.to)) {
+          turnState.from = null;
+          turnState.to = null;
+          return;
+        }
+
+        // update graphics
+        fromHexagon.clear();
+        hexagon.clear();
+
+        drawHexagonPath(fromHexagon, playerColors[players.indexOf(board.field(turnState.from).flag)]);
+        drawHexagonPath(hexagon, playerColors[players.indexOf(board.field(turnState.to).flag)]);
+
+        fromCaption.text = board.field(turnState.from).strength;
+        caption.text = field.strength;
+
+        console.log(turnState.player, turnState.from, turnState.to);
+        turnState.nextPlayer();
+      });
+
+      app.stage.addChild(hexagon);
+      app.stage.addChild(caption);
+    })
+  });
+</script>
+
+</html>
